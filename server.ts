@@ -50,6 +50,10 @@ function requireEnv(name: string, value: string | undefined) {
   }
 }
 
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function extractJsonObject(text: string) {
   const trimmed = text.trim();
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed;
@@ -64,6 +68,23 @@ function extractJsonObject(text: string) {
   return trimmed;
 }
 
+function parseExtractedData(responseText: string, context: string) {
+  try {
+    const jsonText = extractJsonObject(responseText);
+    const parsed = JSON.parse(jsonText);
+
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new SyntaxError('Parsed JSON is not an object.');
+    }
+
+    return normalizeExtractedData(parsed as Partial<ExtractedData>);
+  } catch (error) {
+    const parseError = new SyntaxError(`${context}: ${getErrorMessage(error)}`);
+    (parseError as any).rawResponse = responseText;
+    throw parseError;
+  }
+}
+
 function normalizeExtractedData(input: Partial<ExtractedData>): ExtractedData {
   const data = Object.fromEntries(
     REQUIRED_FIELDS.map((field) => [field, String(input[field] ?? '').trim()])
@@ -75,6 +96,37 @@ function normalizeExtractedData(input: Partial<ExtractedData>): ExtractedData {
   data.Company_Name_Abbrev = data.Company_Name;
 
   return data;
+}
+
+function countFilledFields(data: ExtractedData, fields: Array<keyof ExtractedData>) {
+  return fields.filter((field) => data[field].trim().length > 0).length;
+}
+
+function validateExtractedDataQuality(data: ExtractedData, fileName: string) {
+  const keyFields: Array<keyof ExtractedData> = [
+    'Company_Name',
+    'Business_Number',
+    'CEO_Name',
+    'Business_Type',
+    'Business_Sector',
+    'Address_Detail_1',
+  ];
+
+  const filledKeyFieldCount = countFilledFields(data, keyFields);
+  const hasPrimaryIdentifier = Boolean(data.Company_Name.trim() || data.Business_Number.trim());
+
+  if (!hasPrimaryIdentifier || filledKeyFieldCount < 2) {
+    console.warn(`[${OCR_MODEL}] Low quality extraction for "${fileName}": ${JSON.stringify(data)}`);
+    throw new Error(
+      'AI가 문서에서 충분한 정보를 추출하지 못했습니다. 파일 옆 재시도를 눌러 다시 분석해 주세요.'
+    );
+  }
+}
+
+function logRawAiResponse(fileName: string, reason: string, responseText: string) {
+  const preview = responseText ? responseText.slice(0, 4000) : '[empty response]';
+  console.error(`[${OCR_MODEL}] JSON parse failed for "${fileName}": ${reason}`);
+  console.error(`[${OCR_MODEL}] Raw AI response for "${fileName}" (first 4000 chars):\n${preview}`);
 }
 
 function getKakaoSearchQuery(address: string) {
@@ -222,9 +274,80 @@ async function createVisionContent(file: Express.Multer.File) {
   ];
 }
 
+function createJsonRepairPrompt(rawResponse: string, fileName: string, reason: string) {
+  return `The OCR response below could not be parsed as JSON.
+Convert it into exactly one valid JSON object matching the required schema.
+
+Rules:
+- Return JSON only.
+- Do not include markdown, comments, explanations, or code fences.
+- Every field must exist and every value must be a string.
+- If a value is unknown or missing, use an empty string.
+- Company_Code must be "1000".
+- Client_Type must be "1".
+- Client_Code must be "".
+- Company_Name_Abbrev must equal Company_Name.
+
+Required JSON shape:
+{
+  "Company_Code": "1000",
+  "Client_Type": "1",
+  "Client_Code": "",
+  "Company_Name": "",
+  "Company_Name_Abbrev": "",
+  "Business_Number": "",
+  "CEO_Name": "",
+  "Business_Type": "",
+  "Business_Sector": "",
+  "Zip_Code": "",
+  "Address_Detail_1": ""
+}
+
+File name:
+${fileName}
+
+Parse failure:
+${reason}
+
+OCR response to repair:
+${rawResponse.slice(0, 16000)}`;
+}
+
+async function repairExtractedDataJson(
+  ai: OpenAI,
+  file: Express.Multer.File,
+  rawResponse: string,
+  parseError: unknown
+) {
+  const reason = getErrorMessage(parseError);
+  logRawAiResponse(file.originalname, reason, rawResponse);
+
+  const response = await ai.chat.completions.create({
+    model: OCR_MODEL,
+    messages: [
+      {
+        role: 'user',
+        content: createJsonRepairPrompt(rawResponse, file.originalname, reason),
+      },
+    ],
+    max_tokens: 1200,
+    temperature: 0,
+  });
+
+  const repairedText = response.choices[0]?.message?.content ?? '';
+
+  try {
+    return parseExtractedData(repairedText, 'JSON repair response');
+  } catch (repairError) {
+    logRawAiResponse(file.originalname, `JSON repair failed: ${getErrorMessage(repairError)}`, repairedText);
+    throw repairError;
+  }
+}
+
 async function callMimoVision(ai: OpenAI, file: Express.Multer.File) {
   let retries = 5;
   let delayMs = 2000;
+  let lastError: unknown;
 
   for (let i = 0; i < retries; i += 1) {
     try {
@@ -241,19 +364,41 @@ async function callMimoVision(ai: OpenAI, file: Express.Multer.File) {
       });
 
       const responseText = response.choices[0]?.message?.content ?? '';
-      const jsonText = extractJsonObject(responseText);
-      return normalizeExtractedData(JSON.parse(jsonText));
+      try {
+        return parseExtractedData(responseText, 'OCR response');
+      } catch (parseError) {
+        try {
+          return await repairExtractedDataJson(ai, file, responseText, parseError);
+        } catch (repairError) {
+          lastError = repairError;
+          console.warn(
+            `[${OCR_MODEL} OCR JSON repair attempt ${i + 1} failed] file=${file.originalname}, message=${getErrorMessage(repairError)}`
+          );
+
+          if (i < retries - 1) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+            delayMs *= 2;
+            continue;
+          }
+
+          throw new Error(
+            `AI response could not be converted to JSON for ${file.originalname}. Last error: ${getErrorMessage(repairError)}`
+          );
+        }
+      }
     } catch (apiError: any) {
+      lastError = apiError;
       const status = apiError?.status;
-      const message = apiError?.message || String(apiError);
+      const message = getErrorMessage(apiError);
+      const lowerMessage = message.toLowerCase();
       const isRetryable =
         status === 429 ||
         status === 500 ||
         status === 502 ||
         status === 503 ||
-        message.includes('rate') ||
-        message.includes('overload') ||
-        message.includes('timeout');
+        lowerMessage.includes('rate') ||
+        lowerMessage.includes('overload') ||
+        lowerMessage.includes('timeout');
 
       console.warn(`[${OCR_MODEL} OCR attempt ${i + 1} failed] status=${status}, message=${message}`);
 
@@ -271,7 +416,7 @@ async function callMimoVision(ai: OpenAI, file: Express.Multer.File) {
     }
   }
 
-  throw new Error('AI OCR 결과를 받을 수 없습니다. 잠시 후 다시 시도해주세요.');
+  throw new Error(`AI OCR 결과를 받을 수 없습니다. 마지막 오류: ${getErrorMessage(lastError)}`);
 }
 
 async function startServer() {
@@ -369,6 +514,8 @@ async function startServer() {
         }
 
         const jsonData = await callMimoVision(ai, req.file);
+        validateExtractedDataQuality(jsonData, req.file.originalname);
+
         const zipCode = await findZipCode(jsonData.Address_Detail_1).catch((err) => {
           console.error('Kakao zip lookup failed:', err);
           return null;
