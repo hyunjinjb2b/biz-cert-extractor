@@ -36,8 +36,11 @@ interface ProcessedFile {
   error?: string;
 }
 
+<<<<<<< HEAD
 const MAX_CONCURRENT_UPLOADS = 1;
 
+=======
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
 const fieldLables: Record<keyof ExtractedData, string> = {
   Company_Code: "회사코드",
   Client_Type: "거래처 구분",
@@ -57,7 +60,10 @@ export default function App() {
   const [isHovering, setIsHovering] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+<<<<<<< HEAD
   const [modelName, setModelName] = useState("Unknown");
+=======
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Kakao API Direct Test States
@@ -75,6 +81,7 @@ export default function App() {
   } | null>(null);
   const [isTestingKakao, setIsTestingKakao] = useState(false);
 
+<<<<<<< HEAD
   useEffect(() => {
     fetch("/api/health")
       .then(res => res.json())
@@ -88,6 +95,8 @@ export default function App() {
       });
   }, []);
 
+=======
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
   const runKakaoTest = () => {
     if (!testAddress.trim()) return;
     setIsTestingKakao(true);
@@ -113,6 +122,7 @@ export default function App() {
   };
 
   useEffect(() => {
+<<<<<<< HEAD
     const uploadingCount = files.filter(f => f.status === 'uploading').length;
     const availableSlots = Math.max(0, MAX_CONCURRENT_UPLOADS - uploadingCount);
     const pendingFiles = files.filter(f => f.status === 'pending').slice(0, availableSlots);
@@ -128,6 +138,15 @@ export default function App() {
     setFiles(prev => prev.map(f => pendingIds.has(f.id) ? { ...f, status: 'uploading' } : f));
 
     pendingFiles.forEach((pendingFile) => {
+=======
+    if (isProcessing) return;
+
+    const pendingFile = files.find(f => f.status === 'pending');
+    if (pendingFile) {
+        setIsProcessing(true);
+        setFiles(prev => prev.map(f => f.id === pendingFile.id ? { ...f, status: 'uploading' } : f));
+
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
         const formData = new FormData();
         formData.append("file", pendingFile.file);
 
@@ -154,11 +173,21 @@ export default function App() {
           })
           .then(data => {
               setFiles(prev => prev.map(f => f.id === pendingFile.id ? { ...f, status: 'success', data } : f));
+<<<<<<< HEAD
           })
           .catch(err => {
               setFiles(prev => prev.map(f => f.id === pendingFile.id ? { ...f, status: 'error', error: err.message } : f));
           });
     });
+=======
+              setIsProcessing(false);
+          })
+          .catch(err => {
+              setFiles(prev => prev.map(f => f.id === pendingFile.id ? { ...f, status: 'error', error: err.message } : f));
+              setIsProcessing(false);
+          });
+    }
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
   }, [files, isProcessing]);
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -525,7 +554,11 @@ export default function App() {
       {/* Footer */}
       <footer className="h-12 bg-white border-t border-slate-200 px-8 flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400 font-medium flex-shrink-0 hidden sm:flex">
         <div className="flex gap-6 uppercase tracking-widest">
+<<<<<<< HEAD
            <span>Model: {modelName}</span>
+=======
+           <span>Model: MIMO v2.5 Vision</span>
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
            <span>Data Integration: XLSX Download</span>
            <span>Queue Mode: Async</span>
         </div>

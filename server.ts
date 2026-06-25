@@ -26,7 +26,11 @@ const upload = multer({
 });
 
 const PORT = Number(process.env.PORT || 3000);
+<<<<<<< HEAD
 const OCR_MODEL = process.env.UBION_VISION_MODEL || process.env.OCR_MODEL || 'gpt-4o';
+=======
+const OCR_MODEL = process.env.UBION_VISION_MODEL || process.env.OCR_MODEL || 'mimo-v2.5';
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
 const UBION_LITELLM_URL = process.env.UBION_LITELLM_URL;
 const UBION_LITELLM_KEY = process.env.UBION_LITELLM_KEY;
 
@@ -44,6 +48,7 @@ const REQUIRED_FIELDS: Array<keyof ExtractedData> = [
   'Address_Detail_1',
 ];
 
+<<<<<<< HEAD
 const EXTRACTED_DATA_JSON_SCHEMA = {
   name: 'business_certificate_extraction',
   strict: true,
@@ -57,6 +62,8 @@ const EXTRACTED_DATA_JSON_SCHEMA = {
   },
 };
 
+=======
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
 function requireEnv(name: string, value: string | undefined) {
   if (!value) {
     throw new Error(`${name} 환경변수가 설정되어 있지 않습니다.`);
@@ -67,6 +74,7 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+<<<<<<< HEAD
 function isStructuredOutputUnsupported(error: unknown) {
   const status = (error as any)?.status;
   const message = getErrorMessage(error).toLowerCase();
@@ -80,6 +88,8 @@ function isStructuredOutputUnsupported(error: unknown) {
   );
 }
 
+=======
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
 function extractJsonObject(text: string) {
   const trimmed = text.trim();
   if (trimmed.startsWith('{') && trimmed.endsWith('}')) return trimmed;
@@ -124,6 +134,7 @@ function normalizeExtractedData(input: Partial<ExtractedData>): ExtractedData {
   return data;
 }
 
+<<<<<<< HEAD
 async function createJsonSchemaCompletion(
   ai: OpenAI,
   messages: Array<{ role: 'user'; content: any }>
@@ -192,6 +203,8 @@ async function createOcrCompletion(
   });
 }
 
+=======
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
 function countFilledFields(data: ExtractedData, fields: Array<keyof ExtractedData>) {
   return fields.filter((field) => data[field].trim().length > 0).length;
 }
@@ -416,12 +429,25 @@ async function repairExtractedDataJson(
   const reason = getErrorMessage(parseError);
   logRawAiResponse(file.originalname, reason, rawResponse);
 
+<<<<<<< HEAD
   const response = await createStructuredCompletion(ai, [
+=======
+  const response = await ai.chat.completions.create({
+    model: OCR_MODEL,
+    messages: [
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
       {
         role: 'user',
         content: createJsonRepairPrompt(rawResponse, file.originalname, reason),
       },
+<<<<<<< HEAD
     ]);
+=======
+    ],
+    max_tokens: 1200,
+    temperature: 0,
+  });
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
 
   const repairedText = response.choices[0]?.message?.content ?? '';
 
@@ -434,6 +460,7 @@ async function repairExtractedDataJson(
 }
 
 async function callMimoVision(ai: OpenAI, file: Express.Multer.File) {
+<<<<<<< HEAD
   const retries = 3;
   let delayMs = 2000;
   let lastError: unknown;
@@ -447,6 +474,25 @@ async function callMimoVision(ai: OpenAI, file: Express.Multer.File) {
             content: visionContent as any,
           },
         ]);
+=======
+  let retries = 5;
+  let delayMs = 2000;
+  let lastError: unknown;
+
+  for (let i = 0; i < retries; i += 1) {
+    try {
+      const response = await ai.chat.completions.create({
+        model: OCR_MODEL,
+        messages: [
+          {
+            role: 'user',
+            content: (await createVisionContent(file)) as any,
+          },
+        ],
+        max_tokens: 1200,
+        temperature: 0,
+      });
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
 
       const responseText = response.choices[0]?.message?.content ?? '';
       try {

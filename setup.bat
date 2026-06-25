@@ -128,7 +128,11 @@ if exist ".env" (
         echo KAKAO_REST_API_KEY=PUT_YOUR_KAKAO_REST_API_KEY_HERE
         echo UBION_LITELLM_URL=http://192.168.50.119:4000
         echo UBION_LITELLM_KEY=PUT_YOUR_UBION_LITELLM_KEY_HERE
+<<<<<<< HEAD
         echo UBION_VISION_MODEL=gpt-4o
+=======
+        echo UBION_VISION_MODEL=mimo-v2.5
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
         ) > ".env"
         echo [OK] Created default .env.
     )

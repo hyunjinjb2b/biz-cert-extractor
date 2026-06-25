@@ -144,11 +144,19 @@ if not exist ".env" (
     echo # Local environment
     echo # Replace the values below with your real API keys.
     echo.
+<<<<<<< HEAD
+=======
+    echo GEMINI_API_KEY=PUT_YOUR_GEMINI_API_KEY_HERE
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
     echo APP_URL=http://localhost:3000
     echo KAKAO_REST_API_KEY=PUT_YOUR_KAKAO_REST_API_KEY_HERE
     echo UBION_LITELLM_URL=http://192.168.50.119:4000
     echo UBION_LITELLM_KEY=PUT_YOUR_UBION_LITELLM_KEY_HERE
+<<<<<<< HEAD
     echo UBION_VISION_MODEL=gpt-4o
+=======
+    echo UBION_VISION_MODEL=mimo-v2.5
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
     ) > ".env"
 
     echo.
@@ -163,6 +171,10 @@ if not exist ".env" (
 echo [OK] .env file found.
 echo [INFO] Validating API keys...
 
+<<<<<<< HEAD
+=======
+call :READ_ENV_VALUE GEMINI_API_KEY GEMINI_KEY
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
 call :READ_ENV_VALUE APP_URL APP_URL_VALUE
 call :READ_ENV_VALUE KAKAO_REST_API_KEY KAKAO_KEY
 call :READ_ENV_VALUE UBION_LITELLM_URL UBION_URL
@@ -187,8 +199,13 @@ if /i "!UBION_KEY!"=="PUT_YOUR_UBION_LITELLM_KEY_HERE" (
 )
 
 if "!UBION_MODEL!"=="" (
+<<<<<<< HEAD
     echo [INFO] UBION_VISION_MODEL is empty. Using default: gpt-4o
     set "UBION_MODEL=gpt-4o"
+=======
+    echo [INFO] UBION_VISION_MODEL is empty. Using default: mimo-v2.5
+    set "UBION_MODEL=mimo-v2.5"
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
 )
 
 if "!APP_URL_VALUE!"=="" (
@@ -213,11 +230,19 @@ if "!ENV_ERROR!"=="1" (
     echo   APP_URL=http://localhost:3000
     echo   UBION_LITELLM_URL=http://192.168.50.119:4000
     echo   UBION_LITELLM_KEY=your_real_ubion_litellm_key
+<<<<<<< HEAD
     echo   UBION_VISION_MODEL=gpt-4o
     echo   KAKAO_REST_API_KEY=your_real_kakao_rest_api_key
     echo.
     echo Notes:
     echo   - UBION_LITELLM_KEY is required for AI OCR.
+=======
+    echo   UBION_VISION_MODEL=mimo-v2.5
+    echo   KAKAO_REST_API_KEY=your_real_kakao_rest_api_key
+    echo.
+    echo Notes:
+    echo   - UBION_LITELLM_KEY is required for MIMO v2.5 OCR.
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
     echo   - KAKAO_REST_API_KEY is optional for OCR, but required for zip-code lookup.
     echo   - Kakao key must be the REST API key, not the JavaScript key.
     echo.
@@ -225,6 +250,10 @@ if "!ENV_ERROR!"=="1" (
     exit /b 1
 )
 
+<<<<<<< HEAD
+=======
+set "GEMINI_API_KEY=!GEMINI_KEY!"
+>>>>>>> a2cb1beba651ff24be5aacfd9923ff5e28ef9ecd
 set "APP_URL=!APP_URL_VALUE!"
 set "KAKAO_REST_API_KEY=!KAKAO_KEY!"
 set "UBION_LITELLM_URL=!UBION_URL!"
